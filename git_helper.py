@@ -269,7 +269,6 @@ if __name__ == "__main__":
 		tool_choice="auto",
 	)
     message = response.choices[0].message
-    print(f"{message=}")
     
     if message.tool_calls:
         for tool_call in message.tool_calls:
@@ -287,17 +286,17 @@ if __name__ == "__main__":
                 create_pull_request(base, title, body)
             elif function_name == "explain_changes":
                 print(f"Taking action: explain changes")
-                explain_changes()
+                print(explain_changes())
             elif function_name == "suggest_review_comments":
                 print(f"Taking action: suggest review comments")
-                suggest_review_comments()
+                print(suggest_review_comments())
             elif function_name == "summarize_todos":
                 print(f"Taking action: summarize todos")
-                summarize_todos()
+                print(summarize_todos())
             elif function_name == "generate_release_notes":
                 print(f"Taking action: generate release notes")
                 base_ref = function_args.get("base_ref", "origin/main")
                 head_ref = function_args.get("head_ref", "HEAD")
-                generate_release_notes(base_ref, head_ref)
+                print(generate_release_notes(base_ref, head_ref))
     else:
         print(message.content)
