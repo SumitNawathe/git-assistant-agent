@@ -139,30 +139,146 @@ def create_github_issue_from_error_log(error_log):
     resp = requests.post(url, json=data, headers=headers)
     return {"issue_url": resp.json().get("html_url"), "status": resp.status_code}
 
+tools = [
+    {
+        "type": "function",
+        "function": {
+            "name": "commit_and_push_changes",
+            "description": "Commit all current changes and push to remote.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "message": {"type": "string", "description": "The commit message. If not provided, one will be generated from the git diff."},
+                },
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_pull_request",
+            "description": "Create a pull request with a detailed summary. The default base branch (the branch being merged into) is 'main'. If the title and body are not provided, they will be generated automatically from the diff.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "base": {"type": "string"},
+                    "title": {"type": "string"},
+                    "body": {"type": "string"},
+                },
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "explain_changes",
+            "description": "Asks OpenAI model to explain the current git diff.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "suggest_review_comments",
+            "description": "Asks OpenAI model to suggest inline review comments for the current git diff.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "summarize_todos",
+            "description": "Asks OpenAI model to summarize and prioritize the TODO comments.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "generate_release_notes",
+            "description": "Generates release notes based on the git log. The default base_ref is origin/main, and the default head_ref is 'HEAD'.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "base_ref": {"type": "string"},
+                    "head_ref": {"type": "string"},
+				},
+                "required": []
+            }
+        }
+    }
+]
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", help="Which command to run", choices=[
-        "commit_and_push", "create_pr", "explain_changes", "review_comments",
-        "summarize_todos", "release_notes", "create_issue"])
-    parser.add_argument("--message", help="Optional commit message or error log")
+    parser.add_argument(
+        "instructions",
+        help="Instructions to the agent",
+        type=str
+    )
     args = parser.parse_args()
-
-    match args.command:
-        case "commit_and_push":
-            print(commit_and_push_changes(args.message))
-        case "create_pr":
-            print(create_pull_request())
-        case "explain_changes":
-            print(explain_changes())
-        case "review_comments":
-            print(suggest_review_comments())
-        case "summarize_todos":
-            print(summarize_todos())
-        case "release_notes":
-            print(generate_release_notes())
-        case "create_issue":
-            if not args.message:
-                print("Please provide --message with an error log")
-            else:
-                print(create_github_issue_from_error_log(args.message))
+    
+    messages = [
+        {
+            'role': 'system',
+            'content': 'You are a helpful assistant that helps developers with git commands, repository management, and the software development lifecycle. You may depend on the tools provided to you; you do not need to provide optional arguments if you do not have context.'
+		},
+        {
+            'role': 'user',
+            'content': f"{args.instructions}"
+		}
+	]
+    response = openai.chat.completions.create(
+		model="gpt-4",
+		messages=messages,
+		tools=tools,
+		tool_choice="auto",
+	)
+    message = response.choices[0].message
+    print(f"{message=}")
+    
+    if message.tool_calls:
+        for tool_call in message.tool_calls:
+            function_name = tool_call.function.name
+            function_args = json.loads(tool_call.function.arguments)
+            if function_name == "commit_and_push_changes":
+                print(f"Taking action: commit and push changes")
+                commit_message = function_args.get("message")
+                commit_and_push_changes(commit_message)
+            elif function_name == "create_pull_request":
+                print(f"Taking action: create pull request")
+                base = function_args.get("base", "main")
+                title = function_args.get("title")
+                body = function_args.get("body")
+                create_pull_request(base, title, body)
+            elif function_name == "explain_changes":
+                print(f"Taking action: explain changes")
+                explain_changes()
+            elif function_name == "suggest_review_comments":
+                print(f"Taking action: suggest review comments")
+                suggest_review_comments()
+            elif function_name == "summarize_todos":
+                print(f"Taking action: summarize todos")
+                summarize_todos()
+            elif function_name == "generate_release_notes":
+                print(f"Taking action: generate release notes")
+                base_ref = function_args.get("base_ref", "origin/main")
+                head_ref = function_args.get("head_ref", "HEAD")
+                generate_release_notes(base_ref, head_ref)
+    else:
+        print(message.content)
