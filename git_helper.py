@@ -148,7 +148,10 @@ tools = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "message": {"type": "string", "description": "The commit message. If not provided, one will be generated from the git diff."},
+                    "message": {
+                        "type": "string",
+                        "description": "The commit message. If not provided, one will be generated from the git diff."
+                    },
                 },
                 "required": []
             }
@@ -158,13 +161,22 @@ tools = [
         "type": "function",
         "function": {
             "name": "create_pull_request",
-            "description": "Create a pull request with a detailed summary. The default base branch (the branch being merged into) is 'main'. If the title and body are not provided, they will be generated automatically from the diff.",
+            "description": "Create a pull request with a detailed summary.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "base": {"type": "string"},
-                    "title": {"type": "string"},
-                    "body": {"type": "string"},
+                    "base": {
+                        "type": "string",
+                        "description": "The base branch (the branch being merged into). Is 'main' by default."
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "The title of the pull request. If not provided, one will be generated from the diff."
+                    },
+                    "body": {
+                        "type": "string",
+                        "description": "The body of the pull request. If not provided, one will be generated from the diff."
+                    },
                 },
                 "required": []
             }
@@ -210,12 +222,18 @@ tools = [
         "type": "function",
         "function": {
             "name": "generate_release_notes",
-            "description": "Generates release notes based on the git log. The default base_ref is origin/main, and the default head_ref is 'HEAD'.",
+            "description": "Generates release notes based on the git log.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "base_ref": {"type": "string"},
-                    "head_ref": {"type": "string"},
+                    "base_ref": {
+                        "type": "string",
+                        "description": "The base reference for the git log. Defaults to 'origin/main'."
+                    },
+                    "head_ref": {
+                        "type": "string",
+                        "description": "The head reference for the git log. Defaults to 'HEAD'."
+                    },
 				},
                 "required": []
             }
@@ -236,7 +254,8 @@ if __name__ == "__main__":
     messages = [
         {
             'role': 'system',
-            'content': 'You are a helpful assistant that helps developers with git commands, repository management, and the software development lifecycle. You may depend on the tools provided to you; you do not need to provide optional arguments if you do not have context.'
+            'content': 'You are a helpful assistant that helps developers with git commands, repository management, and the software development lifecycle.' + \
+                        'You may depend on the tools provided to you; you do not need to provide optional arguments if you do not have context.'
 		},
         {
             'role': 'user',
