@@ -20,7 +20,8 @@ openai.api_key = OPENAI_API_KEY
 def get_repo_from_git():
     remote_url = subprocess.check_output(["git", "config", "--get", "remote.origin.url"], text=True).strip()
     match = re.search(r"[:/]([\w.-]+/[\w.-]+)(?:\.git)?$", remote_url)
-    return match.group(1) if match else None
+    ans = match.group(1) if match else None
+    return ans.split('.git')[0] if ans else None
 
 def commit_and_push_changes(commit_message=None):
     if not commit_message:
@@ -51,14 +52,21 @@ def create_pull_request(base="main", title=None, body=None):
         match = re.match(r"(?s)(.*?)\n\n(.*)", completion)
         title, body = match.groups() if match else ("Update code", completion)
 
-    url = f"https://api.github.com/repos/{get_repo_from_git}/pulls"
-    headers = {"Authorization": f"Bearer {GITHUB_TOKEN}"}
+    url = f"https://api.github.com/repos/{get_repo_from_git()}/pulls"
+    headers = {
+        "Authorization": f"token {GITHUB_TOKEN}",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "Accept": "application/vnd.github+json"
+    }
     data = {
         "title": title,
         "head": branch,
         "base": base,
         "body": body
     }
+    print(f"{url=}")
+    print(f"{headers=}")
+    print(f"{data=}")
     response = requests.post(url, headers=headers, json=data)
     return response.json()
 
@@ -120,7 +128,7 @@ def create_github_issue_from_error_log(error_log):
     title, body, labels_str = match.groups()
     labels = [l.strip() for l in labels_str.split(",")]
 
-    url = f"https://api.github.com/repos/{get_repo_from_git}/issues"
+    url = f"https://api.github.com/repos/{get_repo_from_git()}/issues"
     headers = {"Authorization": f"Bearer {GITHUB_TOKEN}"}
     data = {"title": title, "body": body, "labels": labels}
 
