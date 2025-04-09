@@ -23,15 +23,17 @@ def get_repo_from_git():
     ans = match.group(1) if match else None
     return ans.split('.git')[0] if ans else None
 
-def commit_and_push_changes(commit_message=None):
-    if not commit_message:
-        diff = subprocess.check_output(["git", "diff"], text=True)
-        commit_message = openai.chat.completions.create(
-            model="gpt-4",
-            messages=[
-                {"role": "user", "content": f"Summarize the following changes into a short commit message:\n{diff}"}
-            ]
-        ).choices[0].message.content.strip()
+def commit_and_push_changes(prompt="Summarize the following changes into a short commit message:\nDIFFHERE"):
+    if prompt is None:
+        prompt = "Summarize the following changes into a short commit message:\nDIFFHERE"
+    diff = subprocess.check_output(["git", "diff"], text=True)
+    prompt.replace("DIFFHERE", diff)
+    commit_message = openai.chat.completions.create(
+        model="gpt-4",
+        messages=[
+            {"role": "user", "content": prompt}
+        ]
+    ).choices[0].message.content.strip()
 
     # TODO: refactor to not use subprocess
     subprocess.run(["git", "add", "-A"])
@@ -39,18 +41,21 @@ def commit_and_push_changes(commit_message=None):
     subprocess.run(["git", "push"])
     return commit_message
 
-def create_pull_request(base="main", title=None, body=None):
+def create_pull_request(base="main", prompt="Generate a pull request title and body for this diff:\nDIFFHERE"):
+    if prompt is None:
+        prompt = "Generate a pull request title and body for this diff:\nDIFFHERE"
     branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True).strip()
     diff = subprocess.check_output(["git", "diff", f"origin/{base}...{branch}"], text=True)
+    prompt.replace("DIFFHERE", diff)
 
     if not title or not body:
         completion = openai.chat.completions.create(
             model="gpt-4",
             messages=[
-                {"role": "user", "content": f"Generate a pull request title and body for this diff:\n{diff}"}
+                {"role": "user", "content": prompt}
             ]
         ).choices[0].message.content.strip()
-        match = re.match(r"(?s)(.*?)\n\n(.*)", completion)
+        match = re.match(r"(?s)(.*?)\n(.*)", completion)
         title, body = match.groups() if match else ("Update code", completion)
 
     url = f"https://api.github.com/repos/{get_repo_from_git()}/pulls"
@@ -148,10 +153,13 @@ tools = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "message": {
+                    "prompt": {
                         "type": "string",
-                        "description": "The commit message. If not provided, one will be generated from the git diff."
-                    },
+                        "description": "The prompt passed to an LLM to generate the commit messaage. " +\
+                            "If the prompt includes 'DIFFHERE', it will be replaced with the git diff. " +\
+                            "The default prompt is: 'Generate a pull request title and body for this diff:\nDIFFHERE'. " +\
+                            "From the result, the first line will be the title, and the rest will be the body."
+                    }
                 },
                 "required": []
             }
@@ -169,14 +177,12 @@ tools = [
                         "type": "string",
                         "description": "The base branch (the branch being merged into). Is 'main' by default."
                     },
-                    "title": {
+                    "prompt": {
                         "type": "string",
-                        "description": "The title of the pull request. If not provided, one will be generated from the diff."
-                    },
-                    "body": {
-                        "type": "string",
-                        "description": "The body of the pull request. If not provided, one will be generated from the diff."
-                    },
+                        "description": "The prompt passed to an LLM to generate the title and body of the pull request. " +\
+                            "If the prompt includes 'DIFFHERE', it will be replaced with the git diff. " +\
+                            "The default prompt is: 'Summarize the following changes into a short commit message:\nDIFFHERE'."
+                    }
                 },
                 "required": []
             }
@@ -276,8 +282,8 @@ if __name__ == "__main__":
             function_args = json.loads(tool_call.function.arguments)
             if function_name == "commit_and_push_changes":
                 print(f"Taking action: commit and push changes")
-                commit_message = function_args.get("message")
-                commit_and_push_changes(commit_message)
+                commit_prompt = function_args.get("prompt")
+                commit_and_push_changes(commit_prompt)
             elif function_name == "create_pull_request":
                 print(f"Taking action: create pull request")
                 base = function_args.get("base", "main")
