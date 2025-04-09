@@ -42,6 +42,8 @@ def commit_and_push_changes(prompt="Summarize the following changes into a short
     return commit_message
 
 def create_pull_request(base="main", prompt="Generate a pull request title and body for this diff:\nDIFFHERE"):
+    print(f"{prompt=}")
+    exit()
     if prompt is None:
         prompt = "Generate a pull request title and body for this diff:\nDIFFHERE"
     branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True).strip()
