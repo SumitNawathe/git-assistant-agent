@@ -1,5 +1,3 @@
-# dev_agent.py
-
 import subprocess
 import requests
 import openai
@@ -9,25 +7,21 @@ import json
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Load vars.env file, which is a sibling to this file
+# load vars.env file, which is a sibling to this file
 script_dir = Path(__file__).resolve().parent
 load_dotenv(dotenv_path=script_dir / "vars.env")
 
-# Load environment variables
+# load environment variables
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 
 openai.api_key = OPENAI_API_KEY
 
-# Extract GitHub repo from git remote
 def get_repo_from_git():
     remote_url = subprocess.check_output(["git", "config", "--get", "remote.origin.url"], text=True).strip()
     match = re.search(r"[:/]([\w.-]+/[\w.-]+)(?:\.git)?$", remote_url)
     return match.group(1) if match else None
 
-REPO = get_repo_from_git()
-
-### TOOL 1: Commit with message and push
 def commit_and_push_changes(commit_message=None):
     if not commit_message:
         diff = subprocess.check_output(["git", "diff"], text=True)
@@ -43,8 +37,6 @@ def commit_and_push_changes(commit_message=None):
     subprocess.run(["git", "push"])
     return commit_message
 
-
-### TOOL 2: Create pull request
 def create_pull_request(base="main", title=None, body=None):
     branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True).strip()
     diff = subprocess.check_output(["git", "diff", f"origin/{base}...{branch}"], text=True)
@@ -59,7 +51,7 @@ def create_pull_request(base="main", title=None, body=None):
         match = re.match(r"(?s)(.*?)\n\n(.*)", completion)
         title, body = match.groups() if match else ("Update code", completion)
 
-    url = f"https://api.github.com/repos/{REPO}/pulls"
+    url = f"https://api.github.com/repos/{get_repo_from_git}/pulls"
     headers = {"Authorization": f"Bearer {GITHUB_TOKEN}"}
     data = {
         "title": title,
@@ -70,8 +62,6 @@ def create_pull_request(base="main", title=None, body=None):
     response = requests.post(url, headers=headers, json=data)
     return response.json()
 
-
-### TOOL 3: Explain changes
 def explain_changes():
     diff = subprocess.check_output(["git", "diff"], text=True)
     response = openai.chat.completions.create(
@@ -82,8 +72,6 @@ def explain_changes():
     )
     return response.choices[0].message.content.strip()
 
-
-### TOOL 4: Suggest review comments
 def suggest_review_comments():
     diff = subprocess.check_output(["git", "diff"], text=True)
     response = openai.chat.completions.create(
@@ -95,8 +83,6 @@ def suggest_review_comments():
     )
     return response.choices[0].message.content.strip()
 
-
-### TOOL 5: Summarize TODO comments
 def summarize_todos():
     grep_output = subprocess.check_output(["grep", "-r", "TODO", "./"], text=True, stderr=subprocess.DEVNULL)
     response = openai.chat.completions.create(
@@ -107,8 +93,6 @@ def summarize_todos():
     )
     return response.choices[0].message.content.strip()
 
-
-### TOOL 6: Generate release notes
 def generate_release_notes(base_ref="origin/main", head_ref="HEAD"):
     log = subprocess.check_output(["git", "log", f"{base_ref}..{head_ref}", "--pretty=format:%s"], text=True)
     response = openai.chat.completions.create(
@@ -120,8 +104,6 @@ def generate_release_notes(base_ref="origin/main", head_ref="HEAD"):
     )
     return response.choices[0].message.content.strip()
 
-
-### TOOL 7: Create GitHub issue from error log
 def create_github_issue_from_error_log(error_log):
     response = openai.chat.completions.create(
         model="gpt-4",
@@ -138,18 +120,15 @@ def create_github_issue_from_error_log(error_log):
     title, body, labels_str = match.groups()
     labels = [l.strip() for l in labels_str.split(",")]
 
-    url = f"https://api.github.com/repos/{REPO}/issues"
+    url = f"https://api.github.com/repos/{get_repo_from_git}/issues"
     headers = {"Authorization": f"Bearer {GITHUB_TOKEN}"}
     data = {"title": title, "body": body, "labels": labels}
 
     resp = requests.post(url, json=data, headers=headers)
     return {"issue_url": resp.json().get("html_url"), "status": resp.status_code}
 
-
-# CLI entry point
 if __name__ == "__main__":
     import argparse
-
     parser = argparse.ArgumentParser()
     parser.add_argument("command", help="Which command to run", choices=[
         "commit_and_push", "create_pr", "explain_changes", "review_comments",
