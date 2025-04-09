@@ -42,8 +42,6 @@ def commit_and_push_changes(prompt="Summarize the following changes into a short
     return commit_message
 
 def create_pull_request(base="main", prompt="Generate a pull request title and body for this diff:\nDIFFHERE"):
-    print(f"{prompt=}")
-    exit()
     if prompt is None:
         prompt = "Generate a pull request title and body for this diff:\nDIFFHERE"
     branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True).strip()
@@ -158,7 +156,7 @@ tools = [
                     "prompt": {
                         "type": "string",
                         "description": "The prompt passed to an LLM to generate the commit messaage. " +\
-                            "If the prompt includes 'DIFFHERE', it will be replaced with the git diff. " +\
+                            "The prompt must include 'DIFFHERE' somewhere, which will be replaced with the full git diff. " +\
                             "The default prompt is: 'Generate a pull request title and body for this diff:\nDIFFHERE'. " +\
                             "From the result, the first line will be the title, and the rest will be the body."
                     }
@@ -182,7 +180,7 @@ tools = [
                     "prompt": {
                         "type": "string",
                         "description": "The prompt passed to an LLM to generate the title and body of the pull request. " +\
-                            "If the prompt includes 'DIFFHERE', it will be replaced with the git diff. " +\
+                            "The prompt must include 'DIFFHERE' somewhere, which will be replaced with the full git diff. " +\
                             "The default prompt is: 'Summarize the following changes into a short commit message:\nDIFFHERE'."
                     }
                 },
