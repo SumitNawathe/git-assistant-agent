@@ -33,6 +33,7 @@ def commit_and_push_changes(commit_message=None):
             ]
         ).choices[0].message.content.strip()
 
+    # TODO: refactor to not use subprocess
     subprocess.run(["git", "add", "-A"])
     subprocess.run(["git", "commit", "-m", commit_message])
     subprocess.run(["git", "push"])
@@ -64,9 +65,6 @@ def create_pull_request(base="main", title=None, body=None):
         "base": base,
         "body": body
     }
-    print(f"{url=}")
-    print(f"{headers=}")
-    print(f"{data=}")
     response = requests.post(url, headers=headers, json=data)
     return response.json()
 
@@ -92,11 +90,16 @@ def suggest_review_comments():
     return response.choices[0].message.content.strip()
 
 def summarize_todos():
-    grep_output = subprocess.check_output(["grep", "-r", "TODO", "./"], text=True, stderr=subprocess.DEVNULL)
+    files = subprocess.check_output(["git", "ls-files"], text=True)
+    all_lines = []
+    for file in files.split('\n')[:-1]:
+        with open(file.strip(), 'r') as f:
+            all_lines.extend(f.readlines())
+    all_lines = '\n'.join(list(filter(lambda line: 'TODO' in line, all_lines)))
     response = openai.chat.completions.create(
         model="gpt-4",
         messages=[
-            {"role": "user", "content": f"Summarize and prioritize these TODO comments:\n{grep_output}"}
+            {"role": "user", "content": f"Summarize and prioritize these TODO comments:\n{all_lines}"}
         ]
     )
     return response.choices[0].message.content.strip()
@@ -129,6 +132,7 @@ def create_github_issue_from_error_log(error_log):
     labels = [l.strip() for l in labels_str.split(",")]
 
     url = f"https://api.github.com/repos/{get_repo_from_git()}/issues"
+    # TODO: refactor header out
     headers = {"Authorization": f"Bearer {GITHUB_TOKEN}"}
     data = {"title": title, "body": body, "labels": labels}
 
