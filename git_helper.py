@@ -46,17 +46,19 @@ def create_pull_request(base="main", prompt="Generate a pull request title and b
         prompt = "Generate a pull request title and body for this diff:\nDIFFHERE"
     branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True).strip()
     diff = subprocess.check_output(["git", "diff", f"origin/{base}...{branch}"], text=True)
+    print(f"{prompt=}")
     prompt.replace("DIFFHERE", diff)
+    print(f"REPLACED")
+    print(f"{prompt=}")
 
-    if not title or not body:
-        completion = openai.chat.completions.create(
-            model="gpt-4",
-            messages=[
-                {"role": "user", "content": prompt}
-            ]
-        ).choices[0].message.content.strip()
-        match = re.match(r"(?s)(.*?)\n(.*)", completion)
-        title, body = match.groups() if match else ("Update code", completion)
+    completion = openai.chat.completions.create(
+        model="gpt-4",
+        messages=[
+            {"role": "user", "content": prompt}
+        ]
+    ).choices[0].message.content.strip()
+    match = re.match(r"(?s)(.*?)\n(.*)", completion)
+    title, body = match.groups() if match else ("Update code", completion)
 
     url = f"https://api.github.com/repos/{get_repo_from_git()}/pulls"
     headers = {
@@ -287,9 +289,8 @@ if __name__ == "__main__":
             elif function_name == "create_pull_request":
                 print(f"Taking action: create pull request")
                 base = function_args.get("base", "main")
-                title = function_args.get("title")
-                body = function_args.get("body")
-                create_pull_request(base, title, body)
+                pr_prompt = function_args.get("prompt")
+                create_pull_request(base, pr_prompt)
             elif function_name == "explain_changes":
                 print(f"Taking action: explain changes")
                 print(explain_changes())
